@@ -36,6 +36,8 @@
         git \
         inetutils-ping \
         jq \
+        libc6-dev \
+        libc6-dev:i386 \
         libelf-dev \
         libfdt-dev \
         libgcrypt-dev \
