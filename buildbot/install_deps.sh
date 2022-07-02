@@ -58,6 +58,7 @@
         ninja-build \
         openssh-client \
         pkg-config \
+        python-is-python3 \
         python3-dev \
         python3-distutils \
         python3-psutil \
