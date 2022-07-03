@@ -160,7 +160,7 @@ function claim_worker() {
   return 0
 }
 
-BOTS=$(echo "1 2" | tr ' ' '\n' | shuf)
+BOTS=$(echo "3 4" | tr ' ' '\n' | shuf)
 while true ; do
   sleep 30
   (
