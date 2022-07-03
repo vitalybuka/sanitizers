@@ -67,9 +67,8 @@ chown -R buildbot:buildbot $BOT_DIR
       exit 0
     }
   done
-  
-  $ON_ERROR
-) &
+  exit 1
+) || $ON_ERROR
 
 function create_worker() {
   local WORKER_NAME="$1"
