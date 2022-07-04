@@ -36,7 +36,7 @@
         git \
         inetutils-ping \
         jq \
-        libattr-dev \
+        libattr1-dev \
         libc6-dev \
         libc6-dev:i386 \
         libcap-ng-dev \
