@@ -17,7 +17,7 @@ else
   API_URL=https://lab.llvm.org/buildbot/api/v2/workers
 fi
 
-ON_ERROR=${ON_ERROR:-shutdown now}
+ON_ERROR=${ON_ERROR:-echo 1}
 BOT_DIR=/b
 QEMU_IMAGE_DIR=${BOT_DIR}/qemu_image
 SCRIPT_DIR=$(dirname $(readlink -f "$0"))
