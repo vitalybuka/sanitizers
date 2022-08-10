@@ -43,7 +43,7 @@ readonly BINARY_ARGS="${@:2}"
 # Path to an llvm-symbolizer built with the following config:
 #   cmake -GNinja -DLLVM_BUILD_RUNTIME=OFF -DCMAKE_BUILD_TYPE=Release \
 #       -DLLVM_STATIC_LINK_CXX_STDLIB=ON ../llvm/
-: ${LLVM_SYMBOLIZER:="${ROOT}/llvm_build2_x86_64_symbolizer/bin/llvm-symbolizer"}
+: ${LLVM_SYMBOLIZER:="${ROOT}/llvm_build2_x86_64_lam_qemu/bin/llvm-symbolizer"}
 
 : ${HWASAN_OPTIONS:=""}
 
@@ -64,17 +64,17 @@ function force_kill_qemu_after_timeout {
 function on_exit {
   force_kill_qemu_after_timeout &
   if kill "${QEMU_PID}"; then
-    echo "Waiting for QEMU to shutdown..."
+    echo "Waiting for QEMU to shutdown..." >&2
     wait "${QEMU_PID}" &>/dev/null || true
   fi
 
-  echo "Done!"
+  echo "Done!" >&2
 }
 
 function run_in_qemu {
   local command="${1}"
 
-  echo "Running command in QEMU: ${command}"
+  echo "Running command in QEMU: ${command}" >&2
 
   ssh -p "${SSH_PORT}" -S "${SSH_CONTROL_SOCKET}" root@localhost "${command}"
 }
@@ -83,7 +83,7 @@ function boot_qemu {
   # Create a delta image to boot from.
   "${QEMU_IMG}" create -F raw -b "${IMAGE}" -f qcow2 "${DELTA_IMAGE}"
 
-  echo "Booting QEMU..."
+  echo "Booting QEMU..." >&2
 
   # Try up to 10 random port numbers until one succeeds.
   for i in {0..10}; do
@@ -92,7 +92,7 @@ function boot_qemu {
       -net "user,host=10.0.2.10,hostfwd=tcp:127.0.0.1:${SSH_PORT}-:22" \
       -net "nic,model=e1000" -machine "type=q35,accel=tcg" \
       -cpu "qemu64,+la57,+lam" -kernel "${KERNEL}" \
-      -append "root=/dev/sda net.ifnames=0" -m "1G" &
+      -append "root=/dev/sda net.ifnames=0" -m "1G" &>/dev/null &
     QEMU_PID=$!
 
     # If QEMU is running, the port number worked.
@@ -103,20 +103,22 @@ function boot_qemu {
   # Fail fast if QEMU is not running.
   ps -p "${QEMU_PID}" &>/dev/null
 
-  echo "Waiting for QEMU ssh daemon..."
+  echo "Waiting for QEMU ssh daemon..." >&2
   for i in {0..10}; do
     sleep 5
+
+    echo "SSH into VM, try ${i}" >&2
 
     # Set up persistent SSH connection for faster command execution inside QEMU.
     ssh -p "${SSH_PORT}" -o "StrictHostKeyChecking=no" \
         -o "UserKnownHostsFile=/dev/null" -o "ControlPersist=30m" \
-        -M -S "${SSH_CONTROL_SOCKET}" -i "${SSH_KEY}" root@localhost "echo" &&
+        -M -S "${SSH_CONTROL_SOCKET}" -i "${SSH_KEY}" root@localhost "echo" 1>&2 &&
       break
   done
 
   # Fail fast if SSH is not working.
-  run_in_qemu "echo" &>/dev/null || {
-    echo "SSH is not ready"
+  run_in_qemu "echo" 1>&2 || {
+    echo "SSH is not ready" >&2
     exit 1
   }
 }
@@ -134,7 +136,7 @@ trap on_exit EXIT
 boot_qemu
 
 # Copy llvm-symbolizer to QEMU.
-copy_to_qemu "${LLVM_SYMBOLIZER}" "/usr/bin"
+[[ -f "${LLVM_SYMBOLIZER}" ]] && copy_to_qemu "${LLVM_SYMBOLIZER}" "/usr/bin"
 
 # Copy binary to QEMU.
 run_in_qemu "rm -rf ${QEMU_WORKSPACE_PATH}/*"

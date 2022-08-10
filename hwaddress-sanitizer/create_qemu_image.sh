@@ -17,7 +17,8 @@ if [[ -f /etc/os-release ]] ; then
   RELEASE=${VERSION_CODENAME}
 fi
 
-: ${PREINSTALL_PKGS:="openssh-server"}  # Comma-separated list of packages.
+# Comma-separated list of packages.
+: ${PREINSTALL_PKGS:="openssh-server,nfs-common"}
 
 readonly DIR="$(mktemp -d)"
 readonly IMAGE_DIR="${DIR}/${RELEASE}"
@@ -56,6 +57,7 @@ echo "debian" > "${IMAGE_DIR}/etc/hostname"
 ssh-keygen -q -f "debian.id_rsa" -t rsa -N ""
 mkdir -p "${IMAGE_DIR}/root/.ssh/"
 cat "debian.id_rsa.pub" > "${IMAGE_DIR}/root/.ssh/authorized_keys"
+echo "MaxSessions 1000" >>${IMAGE_DIR}/etc/ssh/sshd_config
 
 # Configure for HWASan tests.
 mkdir -p "${IMAGE_DIR}/workspace"

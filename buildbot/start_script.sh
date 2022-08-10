@@ -45,10 +45,26 @@ mkdir -p $BOT_DIR/.ccache
 cat <<EOF >$BOT_DIR/.ccache/ccache.conf
 max_size = 200.0G
 compression = false
+file_clone = true
 EOF
-# TODO add file_clone
 
 chown -R buildbot:buildbot $BOT_DIR
+
+# Suppress dmesg spam "Pid <N>(qemu-aarch64) over core_pipe_limit".
+cat <<EOF >/etc/sysctl.d/999-buildbot.conf
+fs.suid_dumpable = 0
+kernel.core_pipe_limit = 0
+kernel.panic_on_oops = 0
+kernel.softlockup_panic = 0
+kernel.core_pattern = |/bin/false
+EOF
+
+sysctl --system
+
+cat <<EOF >/etc/exports
+${BOT_DIR} 127.0.0.1(rw,sync,all_squash,insecure,anonuid=999,anongid=999,no_subtree_check)
+EOF
+exportfs -rav
 
 # Generate Debian image for QEMU bot.
 (
