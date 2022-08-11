@@ -11,7 +11,13 @@
       apt-get -qq -y update || exit 1
       apt-get install -qq -y gnupg || exit 1
 
-      dpkg --add-architecture i386
+      if [[ "$(arch)" == "aarch64" ]]; then
+        ARCH32="armhf";
+      else
+        ARCH32="i386";
+      fi
+
+      dpkg --add-architecture $ARCH32
       echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
       dpkg --configure -a
       apt-get -qq -y update || exit 1
@@ -30,15 +36,12 @@
         e2fsprogs \
         flex \
         g++ \
-        g++-multilib \
         gawk \
-        gcc-multilib \
         git \
         inetutils-ping \
         jq \
         libattr1-dev \
         libc6-dev \
-        libc6-dev:i386 \
         libcap-ng-dev \
         libelf-dev \
         libfdt-dev \
