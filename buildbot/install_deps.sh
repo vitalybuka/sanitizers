@@ -11,18 +11,18 @@
       apt-get -qq -y update || exit 1
       apt-get install -qq -y gnupg || exit 1
 
-      if [[ "$(arch)" == "aarch64" ]]; then
-        ARCH32="armhf";
-      else
-        ARCH32="i386";
+      ARCH_PACKAGES=
+      if [[ "$(arch)" == "x86_64" ]]; then
+        dpkg --add-architecture i386
+        ARCH_PACKAGES="g++-multilib gcc-multilib libc6-dev:i386"
       fi
 
-      dpkg --add-architecture $ARCH32
       echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
       dpkg --configure -a
       apt-get -qq -y update || exit 1
       
       apt-get install -qq -y \
+        ${ARCH_PACKAGES} \
         automake \
         bc \
         binutils-dev \
