@@ -21,9 +21,7 @@ var (
 		name, url string
 	}{
 		{"Chromium", ""},
-		{"(FYI) Clang Linux ToT", "https://ci.chromium.org/p/chromium/builders/luci.chromium.ci/ToTLinux"},
-		{"CFI Linux ToT", "https://ci.chromium.org/p/chromium/builders/luci.chromium.ci/CFI%20Linux%20ToT"},
-		{"CFI Linux CF", "https://ci.chromium.org/p/chromium/builders/luci.chromium.ci/CFI%20Linux%20CF"},
+		{"(FYI) Clang Linux ToT", "https://ci.chromium.org/p/chromium/builders/ci/ToTLinux"},
 		{"Sanitizers", ""},
 		{"windows", "http://lab.llvm.org/buildbot/api/v2/builders/sanitizer-windows"},
 		{"x86_64-linux", "http://lab.llvm.org/buildbot/api/v2/builders/sanitizer-x86_64-linux"},
@@ -34,14 +32,18 @@ var (
 		{"x86_64-linux-android", "http://lab.llvm.org/buildbot/api/v2/builders/sanitizer-x86_64-linux-android"},
 		{"x86_64-linux-autoconf", "http://lab.llvm.org/buildbot/api/v2/builders/sanitizer-x86_64-linux-autoconf"},
 		{"x86_64-linux-qemu", "http://lab.llvm.org/buildbot/api/v2/builders/sanitizer-x86_64-linux-qemu"},
+		{"(WIP) aarch64-linux-asan", "http://lab.llvm.org/staging/api/v2/builders/sanitizer-aarch64-linux-bootstrap-asan"},
+		{"(WIP) aarch64-linux-hwasan", "http://lab.llvm.org/staging/api/v2/builders/sanitizer-aarch64-linux-bootstrap-hwasan"},
+		{"(WIP) aarch64-linux-msan", "http://lab.llvm.org/staging/api/v2/builders/sanitizer-aarch64-linux-bootstrap-msan"},
+		{"(WIP) aarch64-linux-ubsan", "http://lab.llvm.org/staging/api/v2/builders/sanitizer-aarch64-linux-bootstrap-ubsan"},
 		{"ppc64be-linux", "http://lab.llvm.org/buildbot/api/v2/builders/sanitizer-ppc64be-linux"},
 		{"ppc64le-linux", "http://lab.llvm.org/buildbot/api/v2/builders/sanitizer-ppc64le-linux"},
-		{"LibFuzzer (x86_64-linux)", ""},
-		{"sanitizer", "http://lab.llvm.org/buildbot/api/v2/builders/sanitizer-x86_64-linux-fuzzer"},
-		{"chromium-asan", "https://ci.chromium.org/p/chromium/builders/luci.chromium.ci/Libfuzzer%20Upload%20Linux%20ASan/"},
-		{"chromium-asan-dbg", "https://ci.chromium.org/p/chromium/builders/luci.chromium.ci/Libfuzzer%20Upload%20Linux%20ASan%20Debug/"},
-		{"chromium-msan", "https://ci.chromium.org/p/chromium/builders/luci.chromium.ci/Libfuzzer%20Upload%20Linux%20MSan/"},
-		{"chromium-ubsan", "https://ci.chromium.org/p/chromium/builders/luci.chromium.ci/Libfuzzer%20Upload%20Linux%20UBSan/"},
+		{"LibFuzzer", ""},
+		{"x86_64-linux-fuzzer", "http://lab.llvm.org/buildbot/api/v2/builders/sanitizer-x86_64-linux-fuzzer"},
+		{"(WIP) aarch64-linux-fuzzer", "http://lab.llvm.org/staging/api/v2/builders/sanitizer-aarch64-linux-fuzzer"},
+		{"chromium-asan", "https://ci.chromium.org/p/chromium/builders/ci/Libfuzzer%20Upload%20Linux%20ASan"},
+		{"chromium-msan", "https://ci.chromium.org/p/chromium/builders/ci/Libfuzzer%20Upload%20Linux%20MSan"},
+		{"chromium-ubsan", "https://ci.chromium.org/p/chromium/builders/ci/Libfuzzer%20Upload%20Linux%20UBSan"},
 	}
 )
 
@@ -100,8 +102,8 @@ type Builds struct {
 	} `json:"builds"`
 }
 
-func GetStatusFromJson(buildUrl string) (statusLine, error) {
-	if buildUrl == "" {
+func GetStatusFromJson(builderUrl string) (statusLine, error) {
+	if builderUrl == "" {
 		return *new(statusLine), nil
 	}
 
@@ -111,7 +113,7 @@ func GetStatusFromJson(buildUrl string) (statusLine, error) {
 		client := http.Client{
 			Timeout: time.Duration(120 * time.Second),
 		}
-		resp, err = client.Get(buildUrl + "/builds")
+		resp, err = client.Get(builderUrl + "/builds")
 		if err == nil {
 			break
 		}
@@ -121,7 +123,7 @@ func GetStatusFromJson(buildUrl string) (statusLine, error) {
 		return *new(statusLine), err
 	}
 
-	baseUrl, err := url.Parse(buildUrl)
+	baseUrl, err := url.Parse(builderUrl)
 	if err != nil {
 		return *new(statusLine), err
 	}
@@ -137,12 +139,14 @@ func GetStatusFromJson(buildUrl string) (statusLine, error) {
 	sort.SliceStable(builds.Builds, func(i, j int) bool {
 		return builds.Builds[i].Number > builds.Builds[j].Number
 	})
-	var sl statusLine
+	var sl statusLine = statusLine{
+		builderUrl: builderUrl,
+	}
 	for _, b := range builds.Builds {
 		if !b.Complete {
 			continue
 		}
-		builder, _ := url.Parse(fmt.Sprintf("/buildbot/#/builders/%d", b.Builderid))
+		builder, _ := url.Parse(fmt.Sprintf("../../../#/builders/%d", b.Builderid))
 		sl.builderUrl = baseUrl.ResolveReference(builder).String()
 		time := time.Unix(int64(b.CompleteAt), 0)
 		if sl.lastbuild.Before(time) {
@@ -154,7 +158,7 @@ func GetStatusFromJson(buildUrl string) (statusLine, error) {
 		} else if b.Results == 2 {
 			success = -1
 		}
-		build, _ := url.Parse(fmt.Sprintf("/buildbot/#/builders/%d/builds/%d", b.Builderid, b.Number))
+		build, _ := url.Parse(fmt.Sprintf("../../../#/builders/%d/builds/%d", b.Builderid, b.Number))
 		sl.statuses = append(sl.statuses, status{baseUrl.ResolveReference(build).String(), success})
 		if len(sl.statuses) >= 31 {
 			break
@@ -163,13 +167,13 @@ func GetStatusFromJson(buildUrl string) (statusLine, error) {
 	return sl, nil
 }
 
-func GetStatus(buildUrl string) (statusLine, error) {
-	if buildUrl == "" {
+func GetStatus(builderUrl string) (statusLine, error) {
+	if builderUrl == "" {
 		return *new(statusLine), nil
 	}
 
-	if strings.Contains(buildUrl, "lab.llvm.org") {
-		return GetStatusFromJson(buildUrl)
+	if strings.Contains(builderUrl, "lab.llvm.org") {
+		return GetStatusFromJson(builderUrl)
 	}
 
 	var resp *http.Response
@@ -178,7 +182,7 @@ func GetStatus(buildUrl string) (statusLine, error) {
 		client := http.Client{
 			Timeout: time.Duration(120 * time.Second),
 		}
-		resp, err = client.Get(buildUrl + "?numbuilds=31")
+		resp, err = client.Get(builderUrl + "?numbuilds=31")
 		if err == nil {
 			break
 		}
@@ -188,7 +192,7 @@ func GetStatus(buildUrl string) (statusLine, error) {
 		return *new(statusLine), err
 	}
 
-	baseUrl, err := url.Parse(buildUrl)
+	baseUrl, err := url.Parse(builderUrl)
 	if err != nil {
 		return *new(statusLine), err
 	}
@@ -262,7 +266,7 @@ func GetStatus(buildUrl string) (statusLine, error) {
 
 						statuses = append(statuses, status{buildUrl, success})
 					}
-					return statusLine{lastbuild, statuses, buildUrl}
+					return statusLine{lastbuild, statuses, builderUrl}
 				}
 			}
 		}
@@ -353,8 +357,8 @@ func GetOssFuzzStatusString() string {
 			}
 		}
 		htmlStatuses += fmt.Sprintf(
-			"<span class='%s'><a href='%s/log-%s.txt'>%s</a>&nbsp;</span> ",
-			class, stausUrl, status.Projects[i].BuildId, status.Projects[i].Name)
+			"<span class='%s'><a href='%s/index.html#%s'>%s</a>&nbsp;</span> ",
+			class, stausUrl, status.Projects[i].Name, status.Projects[i].Name)
 	}
 
 	return fmt.Sprintf("%s %s", header, htmlStatuses)
