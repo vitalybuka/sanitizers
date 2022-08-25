@@ -63,13 +63,14 @@ echo "MaxSessions 1000" >>${IMAGE_DIR}/etc/ssh/sshd_config
 mkdir -p "${IMAGE_DIR}/workspace"
 
 # Build disk image.
-dd if=/dev/zero of="debian.img" bs=1M seek=2047 count=1
-mkfs.ext4 -F "debian.img"
-mkdir -p "/mnt/${RELEASE}"
-mount -o loop "debian.img" "/mnt/${RELEASE}"
-cp -a "${IMAGE_DIR}/." "/mnt/${RELEASE}/."
-umount "/mnt/${RELEASE}"
-while ! rm -rf "/mnt/${RELEASE}" ; do sleep 5; done;
+virt-make-fs --format=qcow2 --type=ext4 --size=+1000M ${IMAGE_DIR} debian.qcow2
+# dd if=/dev/zero of="debian.img" bs=1M seek=2047 count=1
+# mkfs.ext4 -F "debian.img"
+# mkdir -p "/mnt/${RELEASE}"
+# mount -o loop "debian.img" "/mnt/${RELEASE}"
+# cp -a "${IMAGE_DIR}/." "/mnt/${RELEASE}/."
+# umount "/mnt/${RELEASE}"
+# while ! rm -rf "/mnt/${RELEASE}" ; do sleep 5; done;
 
 # Allow non-root user to access image.
-chmod 666 "debian.img"
+chmod 666 "debian.qcow2"
