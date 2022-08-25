@@ -74,3 +74,4 @@ virt-make-fs --format=qcow2 --type=ext4 --size=+1000M ${IMAGE_DIR} debian.qcow2
 
 # Allow non-root user to access image.
 chmod 666 "debian.qcow2"
+rm -rf "${DIR}"
